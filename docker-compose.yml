@@ -1,0 +1,78 @@
+version: '3'
+services:
+
+  #PHP Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: digitalocean.com/php
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+        - ./:/var/www
+        - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+
+  #Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+        - ./:/var/www
+        - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - app-network
+
+  db:
+    image: postgres
+    container_name: db
+    ports:
+      - "5432:5432"
+    environment:
+        - POSTGRES_DB=docker_test
+        - POSTGRES_USER=user
+        - POSTGRES_PASSWORD=12345678
+    networks:
+      - app-network
+
+  redis:
+    container_name: redis
+    image: redis
+    ports:
+      - "6382:6379"
+    volumes:
+      - ./redis:/data
+      - /configs/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - app-network
+
+  socket:
+      image: node
+      container_name: sockets
+      user: "node"
+      volumes:
+        - ./nodejs:/home/node/app
+      ports:
+        - 5000:5000
+      working_dir: /home/node/app
+      command: "npm start"
+      networks:
+        - app-network
+  
+
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge
